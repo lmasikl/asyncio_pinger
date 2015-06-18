@@ -2,134 +2,148 @@
 import asyncio
 
 
-def get_stats_from_ping_data(stats):
-    """
-    >>> data = ['statistics', '---\\n5', 'packets', 'transmitted,', '5']
-    >>> data += ['received,', '0%', 'packet', 'loss,', 'time', '4001ms\\nrtt']
-    >>> data += ['min/avg/max/mdev','=', '79.832/86.519/88.649/3.367', 'ms']
-    >>> get_stats_from_ping_data(data)
-    [79.832, 86.519, 88.649, 3.367, 5.0]
+class Pinger(object):
 
-    Return stats from ping output data.
-    :param stats:
-    :return:
-    """
+    def __init__(self, file_path=None, servers_list=None):
+        if servers_list is None:
+            servers_list = []
 
-    out = []
-    for i, x in enumerate(reversed(stats[:])):
-        data = str(x).split('/')
-        for d in data:
-            try:
-                out.append(float(d))
-            except ValueError:
-                continue
+        self.file_path = file_path
+        self.servers_list = servers_list
+        self.pings = None
 
-    return out
+    @staticmethod
+    def get_stats_from_ping_data(stats):
+        """
+        >>> data = ['statistics', '---\\n5', 'packets', 'transmitted,', '5']
+        >>> data += ['received,', '0%', 'packet', 'loss,', 'time', '4001ms\\nrtt']
+        >>> data += ['min/avg/max/mdev','=', '79.832/86.519/88.649/3.367', 'ms']
+        >>> Pinger.get_stats_from_ping_data(data)
+        [79.832, 86.519, 88.649, 3.367, 5.0]
 
+        Return stats from ping output data.
+        :param stats:
+        :return:
+        """
 
-def read_servers(file_path='servers.list'):
-    """
-    >>> read_servers('test.servers.list')
-    [['Canada, Toronto (PPTP/L2TP)', 'tr-ca.boxpnservers.com']]
+        out = []
+        for i, x in enumerate(reversed(stats[:])):
+            data = str(x).split('/')
+            for d in data:
+                try:
+                    out.append(float(d))
+                except ValueError:
+                    continue
 
-    Read city and server url from file.
+        return out
 
-    File example:
-    ```
-    Canada, Toronto (PPTP/L2TP): tr-ca.boxpnservers.com
-    Canada, Toronto (SSTP): sstp-tr-ca.boxpnservers.com
+    def read_servers(self):
+        """
+        >>> f = Pinger('test.servers.list')
+        >>> f.read_servers()
+        [['Canada, Toronto (PPTP/L2TP)', 'tr-ca.boxpnservers.com']]
 
-    ```
-    :param file_path:
-    :return: [['Canada, Toronto (PPTP/L2TP)', 'tr-ca.boxpnservers.com']]
-    """
-    with open(file_path, 'r') as servers_list:
-        servers = filter(
-            lambda y: y != '\n' and 'SSTP' not in y,
-            [x for x in servers_list.readlines()]
-        )
+        Read city and server url from file.
 
-    process_server = lambda s: list(map(lambda x: x.strip(), s.split(':')))
-    return list(map(process_server, servers))
+        File example:
+        ```
+        Canada, Toronto (PPTP/L2TP): tr-ca.boxpnservers.com
+        Canada, Toronto (SSTP): sstp-tr-ca.boxpnservers.com
 
-
-def ping(city, url):
-    """
-    Ping server.
-    :param city:
-    :param url:
-    :return:
-    """
-    timeout = 10 ** 5
-    packets_count = 5
-    try:
-        _ping = asyncio.create_subprocess_shell(
-            "ping -n -c {} {}".format(packets_count, url),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        _ping = yield from _ping
-        yield from _ping.wait()
-        out = yield from _ping.stdout.read()
-        out = out.decode().rstrip()
-        if out:
-            statistics = get_stats_from_ping_data(
-                out[out.index('statistics ---'):].split(' ')
+        ```
+        """
+        with open(self.file_path, 'r') as servers_list:
+            servers = filter(
+                lambda y: y != '\n' and 'SSTP' not in y,
+                [x for x in servers_list.readlines()]
             )
 
-            try:
-                # received_packets = statistics.pop()
-                # minimum = statistics.pop()
-                # average = statistics.pop()
-                # maximum = statistics.pop()
-                # stddev = statistics.pop()
-                # percent = (received_packets / packets_count) * 100
-                timeout = statistics[-3]
-            except IndexError:
+        process_server = lambda s: list(map(lambda x: x.strip(), s.split(':')))
+        self.servers_list = list(map(process_server, servers))
+
+    @staticmethod
+    def ping(city, url):
+        """
+        Ping server.
+        :param city:
+        :param url:
+        :return:
+        """
+        timeout = None
+        packets_count = 5
+        try:
+            _ping = asyncio.create_subprocess_shell(
+                "ping -n -c {} {}".format(packets_count, url),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            _ping = yield from _ping
+            yield from _ping.wait()
+            out = yield from _ping.stdout.read()
+            out = out.decode().rstrip()
+            if out:
+                statistics = Pinger.get_stats_from_ping_data(
+                    out[out.index('statistics ---'):].split(' ')
+                )
+
+                try:
+                    # received_packets = statistics.pop()
+                    # minimum = statistics.pop()
+                    # average = statistics.pop()
+                    # maximum = statistics.pop()
+                    # stddev = statistics.pop()
+                    # percent = (received_packets / packets_count) * 100
+                    timeout = statistics[-3]
+                except IndexError:
+                    pass
+                    # print "no data for one of minimum,maximum,average,packet"
+            else:
                 pass
-                # print "no data for one of minimum,maximum,average,packet"
-        else:
-            pass
-            # print 'No ping'
+                # print 'No ping'
 
-    except Exception as a:
-        print(a)
-        # print "Couldn't get a ping"
-    finally:
-        return city, url, timeout
+        except Exception as a:
+            print(a)
+            # print "Couldn't get a ping"
+        finally:
+            return city, url, timeout
 
+    def print_results(self):
+        """
+        Print results in stdout
+        :param pings:
+        :return:
+        """
+        assert self.pings, list
+        template = '{:<3}{:<40}{:<25}{:<10}'
+        print(template.format('#', 'City', 'Hostname', 'Ping'))
+        for i, p in enumerate(self.pings, start=1):
+            print('-' * 75)
+            print(template.format(i, *p))
 
-def print_results(pings):
-    """
-    Print results in stdout
-    :param pings:
-    :return:
-    """
-    template = '{:<3}{:<40}{:<25}{:<10}'
-    print(template.format('#', 'City', 'Hostname', 'Ping'))
-    for i, p in enumerate(pings, start=1):
-        print('-' * 75)
-        print(template.format(i, *p))
+    @asyncio.coroutine
+    def process(self):
+        """
+        Process servers
+        :type file_path: 'path to file with servers'
+        :return:
+        """
+        pings = yield from asyncio.gather(
+            *[self.ping(*s) for s in self.servers_list]
+        )
+        self.pings = list(sorted(
+            filter(lambda x: x[2] is not None, pings),
+            key=lambda x: x[2],
+            reverse=True
+        ))
 
-
-@asyncio.coroutine
-def process():
-    """
-    Process servers
-    :return:
-    """
-    pings = yield from asyncio.gather(*[ping(*s) for s in read_servers()])
-    print_results(sorted(
-        filter(lambda x: x[2] < 10 ** 3, pings),
-        key=lambda x: x[2],
-        reverse=True
-    ))
-
-
-def run():
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(process())
-    loop.close()
+    def run(self):
+        del self.servers_list[:]
+        self.read_servers()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.process())
+        loop.close()
 
 if __name__ == '__main__':
-    run()
+    p = Pinger('servers.list')
+    p.run()
+    p.print_results()
