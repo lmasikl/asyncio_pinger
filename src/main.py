@@ -15,34 +15,22 @@ class Pinger(object):
     @staticmethod
     def get_stats_from_ping_data(stats):
         """
-        >>> data = ['statistics', '---\\n5', 'packets', 'transmitted,', '5']
-        >>> data += ['received,', '0%', 'packet', 'loss,', 'time', '4001ms\\nrtt']
-        >>> data += ['min/avg/max/mdev','=', '79.832/86.519/88.649/3.367', 'ms']
-        >>> Pinger.get_stats_from_ping_data(data)
-        [79.832, 86.519, 88.649, 3.367, 5.0]
-
         Return stats from ping output data.
+
         :param stats:
         :return:
         """
 
-        out = []
         for i, x in enumerate(reversed(stats[:])):
             data = str(x).split('/')
             for d in data:
                 try:
-                    out.append(float(d))
+                    yield float(d)
                 except ValueError:
                     continue
 
-        return out
-
     def read_servers(self):
         """
-        >>> f = Pinger('test.servers.list')
-        >>> f.read_servers()
-        [['Canada, Toronto (PPTP/L2TP)', 'tr-ca.boxpnservers.com']]
-
         Read city and server url from file.
 
         File example:
@@ -62,7 +50,7 @@ class Pinger(object):
         self.servers_list = list(map(process_server, servers))
 
     @staticmethod
-    def ping(city, url):
+    def ping(city, url, packets_count=5):
         """
         Ping server.
         :param city:
@@ -70,7 +58,6 @@ class Pinger(object):
         :return:
         """
         timeout = None
-        packets_count = 5
         try:
             _ping = asyncio.create_subprocess_shell(
                 "ping -n -c {} {}".format(packets_count, url),
@@ -82,9 +69,9 @@ class Pinger(object):
             out = yield from _ping.stdout.read()
             out = out.decode().rstrip()
             if out:
-                statistics = Pinger.get_stats_from_ping_data(
+                statistics = [x for x in Pinger.get_stats_from_ping_data(
                     out[out.index('statistics ---'):].split(' ')
-                )
+                )]
 
                 try:
                     # received_packets = statistics.pop()
