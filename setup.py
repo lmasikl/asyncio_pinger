@@ -1,12 +1,19 @@
 from distutils.core import setup
 
 setup(
-    name='best_server',
-    version='0.0.1',
-    packages=[''],
-    url='',
-    license='MIT',
+    name='asyncio-pinger',
+    version='0.0.4',
     author='Maxim Krivodaev',
     author_email='maxim.krivodaev@gmail.com',
-    description='Find server with smallest ping.'
+    packages=['asyncio_pinger', ],
+    scripts=[],
+    url='https://github.com/lmasikl/asyncio_pinger',
+    license='LICENSE.txt',
+    description='Ping based on asyncio.',
+    long_description='',
+    classifiers=[
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3.4',
+    ]
 )

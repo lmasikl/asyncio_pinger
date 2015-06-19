@@ -127,6 +127,6 @@ pip-selfcheck.json
 
 
 
-src/servers.list
+asyncio_pinger/servers.list
 profile
 MANIFEST

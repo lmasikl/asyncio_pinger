@@ -1,13 +1,13 @@
 # coding=utf-8
 import asyncio
 
-import src.main
+import asyncio_pinger.main
 import unittest
 
 
 class PingerTest(unittest.TestCase):
     def setUp(self):
-        self.pinger = src.main.Pinger('test.servers.list')
+        self.pinger = asyncio_pinger.main.Pinger('test.servers.list')
         self.loop = asyncio.get_event_loop()
 
     def _list(self, attr='servers_list'):
@@ -28,7 +28,7 @@ class PingerTest(unittest.TestCase):
             'received,', '0%', 'packet', 'loss,', 'time', '4001ms\\nrtt',
             'min/avg/max/mdev', '=', '79.832/86.519/88.649/3.367', 'ms'
         ]
-        stats_01 = src.main.Pinger.get_stats_from_ping_data(stats)
+        stats_01 = asyncio_pinger.main.Pinger.get_stats_from_ping_data(stats)
         self.assertEqual(stats_01, [79.832, 86.519, 88.649, 3.367, 5.0])
         stats_02 = self.pinger.get_stats_from_ping_data(stats)
         self.assertEqual(stats_02, [79.832, 86.519, 88.649, 3.367, 5.0])
